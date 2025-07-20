@@ -103,13 +103,10 @@ char * SDNV_deconversion(unsigned char * pdata) {
 	unsigned char working_byte = 0;
 	unsigned char saved_bytes = 0;
 	unsigned char *out;
-	unsigned char out_counter;
-	unsigned long long out_mask = 0x17F;
-	unsigned long long bit_flipper = 0x180;
+	unsigned char out_counter = 0;
 	char bytes = 7;
   char count = 0;
-	long long tStack = 0;
-	unsigned char offset = 0;
+	long long rStack = 0;
 
 	//get len data ends at the first octet that does not have the MSB 1
 
@@ -127,7 +124,6 @@ char * SDNV_deconversion(unsigned char * pdata) {
 	out = calloc(count, sizeof(unsigned char));
 	out_counter = count;
 	
-	
 	while (count >= 0) {
 		
 		if (count < 7) {
@@ -142,18 +138,22 @@ char * SDNV_deconversion(unsigned char * pdata) {
 			if (bytes > 0)
 				stack <<= 8;
 		}
+
+		unsigned char right_mask = 0x7F;
+		unsigned short left_mask = 0x100;
 		
 		bytes = (saved_bytes > 0) ? saved_bytes: 7;
 		do {
-			tStack = stack & out_mask;
-			working_byte = tStack >> (8 * offset++);
-			out_mask <<= 9;
-			bit_flipper <<= 8;
-			out_mask ^= bit_flipper;
+			working_byte = stack & right_mask;
+			working_byte |= (stack & left_mask) >> 1;
 			
-			// Move working_byte into the out array
-			*(out + out_counter--) = working_byte;
-			working_byte = 0;
+			right_mask >>= 1;
+			left_mask >>= 1;
+			left_mask |= left_mask << 1;
+		  stack >>= 9;
+
+		  *(out + out_counter) = working_byte;
+			
 		} while (bytes-- >= 0);
 		bytes = 7;
 		count -= bytes;
