@@ -102,6 +102,7 @@ char * SDNV_deconversion(unsigned char * pdata) {
 	unsigned long long stack = 0;
 	unsigned char working_byte = 0;
 	unsigned char saved_bytes = 0;
+	unsigned char saved_count = 0;
 	unsigned char *out;
 	unsigned char out_counter = 0;
 	char bytes = 7;
@@ -123,6 +124,7 @@ char * SDNV_deconversion(unsigned char * pdata) {
 	
 	out = calloc(count, sizeof(unsigned char));
 	out_counter = count;
+	saved_count = count;
 	
 	while (count >= 0) {
 		
@@ -132,7 +134,8 @@ char * SDNV_deconversion(unsigned char * pdata) {
 			saved_bytes = bytes;
 		}
 
-		//could possibly replace this with a memcpy
+		// could possibly replace this with a memcpy
+		// collect 8 bytes
 		for (bytes; bytes >= 0; bytes--) {
 			stack |= pdata[count - bytes];
 			if (bytes > 0)
@@ -142,7 +145,7 @@ char * SDNV_deconversion(unsigned char * pdata) {
 		unsigned char right_mask = 0x7F;
 		unsigned short left_mask = 0x100;
 		
-		bytes = (saved_bytes > 0) ? saved_bytes: 7;
+		bytes = (saved_bytes > 0) ? saved_bytes: DATA_PROCESS_SIZE;
 		do {
 			working_byte = stack & right_mask;
 			working_byte |= (stack & left_mask) >> 1;
@@ -152,10 +155,14 @@ char * SDNV_deconversion(unsigned char * pdata) {
 			left_mask |= left_mask << 1;
 		  stack >>= 9;
 
-		  *(out + out_counter) = working_byte;
+		  *(out + out_counter--) = working_byte;
 			
-		} while (bytes-- >= 0);
+		} while (--bytes >= 0);
+		stack = 0;
 		bytes = 7;
-		count -= bytes;
+		count -= (bytes+1); // encoding generates an extra byte per 7 bytes of data processed
+												// the plus one adjusts count to reflect the data lost during decoding
 	}
+	unsigned char* fixed_out = fix_array(out, saved_count);
+	return fixed_out;
 }
